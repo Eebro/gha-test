@@ -1,0 +1,51 @@
+name: Sync Release to Public Repo
+
+on:
+  release:
+    types: [published]
+    tags-ignore:
+      - "*alpha*" # Ignore any release tag that contains "alpha"
+
+jobs:
+  sync:
+    runs-on: ebf-pod-ubuntu-2204-slim@${{ github.run_id }}-sync
+
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+
+      - name: Extract release details
+        run: |
+          echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "${{ github.event.release.body }}" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Setup SSH for public repo
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PUBLIC_IBRAHIM_REPO_TOKEN }}
+
+      - name: Clone public repo
+        run: |
+          git clone git@github.com:Eebro/gha-test.git public-repo
+
+      - name: Sync files to public repo
+        run: |
+          rsync -av --exclude='.git' --exclude='exclude.txt' ./ public-repo/
+          cd public-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Release sync: $RELEASE_TAG" || echo "No changes to commit"
+          git push origin main
+
+      - name: Create release in public repo
+        run: |
+          cd public-repo
+          gh release create "$RELEASE_TAG" \
+            --repo Eebro/gha-test \
+            --title "$RELEASE_TAG" \
+            --notes "$RELEASE_BODY" || echo "Release already exists"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLIC_IBRAHIM_REPO_TOKEN }}
