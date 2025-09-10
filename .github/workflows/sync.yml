@@ -20,15 +20,10 @@ jobs:
           echo "${{ github.event.release.body }}" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Setup SSH for public repo
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.PUBLIC_IBRAHIM_REPO_TOKEN }}
-
       - name: Clone public repo
         run: |
           echo "Cloning public repository..."
-          if ! git clone git@github.com:Eebro/gha-test.git ../public-repo; then
+          if ! git clone https://x-access-token:${{ secrets.IBRAHIM_PUBLIC_REPO_PAT }}@github.com/Eebro/gha-test.git ../public-repo; then
             echo "Failed to clone public repository"
             exit 1
           fi
@@ -46,8 +41,14 @@ jobs:
           echo "Files synced successfully"
 
           cd ../public-repo
+
+          # Configure git to use the token for authentication
+          git config credential.helper store
+          echo "https://x-access-token:${{ secrets.IBRAHIM_PUBLIC_REPO_PAT }}@github.com" > ~/.git-credentials
+
+          # Set commit author (this overrides the PAT account)
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
 
           # Check if there are changes to commit
