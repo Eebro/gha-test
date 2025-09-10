@@ -3,12 +3,11 @@ name: Sync Release to Public Repo
 on:
   release:
     types: [published]
-    tags-ignore:
-      - "*alpha*" # Ignore any release tag that contains "alpha"
 
 jobs:
   sync:
     runs-on: ebf-pod-ubuntu-2204-slim@${{ github.run_id }}-sync
+    if: ${{ !contains(github.event.release.tag_name, 'alpha') }} # Skip if the tag contains "alpha"
 
     steps:
       - name: Checkout private repo
@@ -28,24 +27,65 @@ jobs:
 
       - name: Clone public repo
         run: |
-          git clone git@github.com:Eebro/gha-test.git ../public-repo
+          echo "Cloning public repository..."
+          if ! git clone git@github.com:Eebro/gha-test.git ../public-repo; then
+            echo "Failed to clone public repository"
+            exit 1
+          fi
+          echo "Successfully cloned public repository"
 
       - name: Sync files to public repo
         run: |
-          rsync -av --delete --exclude='.git' --exclude='exclude.txt' ./ ../public-repo/
+          echo "Syncing files to public repository..."
+
+          # exclude files we dont want to sync
+          if ! rsync -av --delete --exclude='.git' --exclude='exclude.txt' ./ ../public-repo/; then 
+            echo "Failed to sync files to public repository"
+            exit 1
+          fi
+          echo "Files synced successfully"
+
           cd ../public-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "Release sync: $RELEASE_TAG" || echo "No changes to commit"
-          git push origin main
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            echo "Committing changes..."
+            if ! git commit -m "Release sync: $RELEASE_TAG"; then
+              echo "Failed to commit changes"
+              exit 1
+            fi
+            echo "Changes committed successfully"
+          fi
+
+          echo "Pushing changes to public repository..."
+          if ! git push origin main; then
+            echo "Failed to push changes to public repository"
+            exit 1
+          fi
+          echo "Changes pushed successfully"
 
       - name: Create release in public repo
         run: |
           cd ../public-repo
-          gh release create "$RELEASE_TAG" \
-            --repo Eebro/gha-test \
-            --title "$RELEASE_TAG" \
-            --notes "$RELEASE_BODY" || echo "Release already exists"
+
+          echo "Checking if release $RELEASE_TAG already exists..."
+          if gh release view "$RELEASE_TAG" --repo Eebro/gha-test >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists, skipping creation"
+          else
+            echo "Creating release $RELEASE_TAG in public repository..."
+            if ! gh release create "$RELEASE_TAG" \
+              --repo Eebro/gha-test \
+              --title "$RELEASE_TAG" \
+              --notes "$RELEASE_BODY"; then
+              echo "Failed to create release $RELEASE_TAG"
+              exit 1
+            fi
+            echo "Release $RELEASE_TAG created successfully"
+          fi
         env:
           GH_TOKEN: ${{ secrets.IBRAHIM_PUBLIC_REPO_PAT }}
