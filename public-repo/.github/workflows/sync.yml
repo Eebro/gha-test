@@ -48,4 +48,4 @@ jobs:
             --title "$RELEASE_TAG" \
             --notes "$RELEASE_BODY" || echo "Release already exists"
         env:
-          GITHUB_TOKEN: ${{ secrets.IBRAHIM_PUBLIC_REPO_PAT }}
+          GITHUB_TOKEN: ${{ secrets.PUBLIC_IBRAHIM_REPO_TOKEN }}
