@@ -23,7 +23,7 @@ jobs:
       - name: Clone public repo
         run: |
           echo "Cloning public repository..."
-          if ! git clone https://x-access-token:${{ secrets.IBRAHIM_PUBLIC_REPO_PAT }}@github.com/Eebro/gha-test.git ../public-repo; then
+          if ! git clone https://x-access-token:${{ secrets.TMAS_PUBLIC_REPO_PAT }}@github.com/Eebro/gha-test.git ../public-repo; then
             echo "Failed to clone public repository"
             exit 1
           fi
@@ -44,7 +44,7 @@ jobs:
 
           # Configure git to use the token for authentication
           git config credential.helper store
-          echo "https://x-access-token:${{ secrets.IBRAHIM_PUBLIC_REPO_PAT }}@github.com" > ~/.git-credentials
+          echo "https://x-access-token:${{ secrets.TMAS_PUBLIC_REPO_PAT }}@github.com" > ~/.git-credentials
 
           # Set commit author (this overrides the PAT account)
           git config user.name "github-actions[bot]"
@@ -89,4 +89,4 @@ jobs:
             echo "Release $RELEASE_TAG created successfully"
           fi
         env:
-          GH_TOKEN: ${{ secrets.IBRAHIM_PUBLIC_REPO_PAT }}
+          GH_TOKEN: ${{ secrets.TMAS_PUBLIC_REPO_PAT }}
