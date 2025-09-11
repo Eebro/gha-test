@@ -7,7 +7,7 @@ on:
 jobs:
   sync:
     runs-on: ebf-pod-ubuntu-2204-slim@${{ github.run_id }}-sync
-    if: ${{ !contains(github.event.release.tag_name, 'alpha') }} # Skip if the tag contains "alpha"
+    if: ${{ !contains(github.event.release.tag_name, 'alpha') && !github.event.release.prerelease }} # Skip alpha tags and pre-releases
 
     steps:
       - name: Checkout private repo
@@ -33,7 +33,9 @@ jobs:
         run: |
           echo "Syncing files to public repository..."
 
-          # exclude files we dont want to sync
+          # Remove .github folder manually, then do simple sync
+          rm -rf ../public-repo/.github/ || true
+
           if ! rsync -av --delete --exclude='.git' --exclude='exclude.txt' ./ ../public-repo/; then 
             echo "Failed to sync files to public repository"
             exit 1
@@ -90,3 +92,9 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.TMAS_PUBLIC_REPO_PAT }}
+
+      - name: Cleanup
+        if: always()
+        run: |
+          git config --global --unset credential.helper || true
+          rm -f ~/.git-credentials || true
